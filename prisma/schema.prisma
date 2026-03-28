@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  FOUNDER
+  SUPPORTER
+  ADMIN
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  ACTIVE
+  FUNDED
+  REJECTED
+  CANCELLED
+}
+
+enum ContributionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum DocumentVisibility {
+  PUBLIC
+  PRIVATE
+  INVESTORS_ONLY
+}
+
+enum VerificationType {
+  NID
+  BUSINESS_REG
+  REVENUE_PROOF
+  KYC_BASIC
+  KYC_FULL
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PaymentProvider {
+  BKASH
+  NAGAD
+  ROCKET
+  SSLCOMMERZ
+  CARD
+}
+
+enum MilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  emailVerified    Boolean   @default(false)
+  emailVerifyToken String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  role             Role      @default(SUPPORTER)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  profile        Profile?
+  campaigns      Campaign[]
+  contributions  Contribution[]
+  notifications  Notification[]
+  comments       Comment[]
+  trustScore     TrustScore?
+  verifications  Verification[]
+  withdrawals    WithdrawalRequest[]
+  auditLogs      AuditLog[]      @relation("AuditUser")
+  savedCampaigns SavedCampaign[]
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  phone       String?
+  nidNumber   String?
+  location    String?
+  website     String?
+  linkedin    String?
+  companyName String?
+  companyRole String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  founderId        String
+  founder          User           @relation(fields: [founderId], references: [id])
+  title            String
+  slug             String         @unique
+  tagline          String
+  description      String         @db.Text
+  category         String
+  coverImageUrl    String?
+  videoUrl         String?
+  goalAmount       Decimal        @db.Decimal(14, 2)
+  raisedAmount     Decimal        @default(0) @db.Decimal(14, 2)
+  contributorCount Int            @default(0)
+  currency         String         @default("BDT")
+  startDate        DateTime?
+  endDate          DateTime?
+  status           CampaignStatus @default(DRAFT)
+  isFeatured       Boolean        @default(false)
+  platformFee      Decimal        @default(5) @db.Decimal(4, 2)
+  rejectionReason  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  contributions Contribution[]
+  milestones    Milestone[]
+  documents     Document[]
+  metrics       Metric[]
+  comments      Comment[]
+  updates       CampaignUpdate[]
+  savedBy       SavedCampaign[]
+
+  @@index([status, isFeatured])
+  @@index([category])
+  @@index([founderId])
+}
+
+model Metric {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  period     String
+  revenue    Decimal? @db.Decimal(14, 2)
+  profit     Decimal? @db.Decimal(14, 2)
+  customers  Int?
+  users      Int?
+  orders     Int?
+  expenses   Decimal? @db.Decimal(14, 2)
+  cashFlow   Decimal? @db.Decimal(14, 2)
+  teamSize   Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([campaignId, period])
+}
+
+model Contribution {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id])
+  campaignId      String
+  campaign        Campaign           @relation(fields: [campaignId], references: [id])
+  amount          Decimal            @db.Decimal(14, 2)
+  status          ContributionStatus @default(PENDING)
+  paymentProvider PaymentProvider?
+  providerTxId    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  transaction Transaction?
+
+  @@index([userId])
+  @@index([campaignId])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  contributionId String          @unique
+  contribution   Contribution    @relation(fields: [contributionId], references: [id])
+  provider       PaymentProvider
+  providerTxId   String?
+  amount         Decimal         @db.Decimal(14, 2)
+  fee            Decimal         @default(0) @db.Decimal(14, 2)
+  status         String
+  rawPayload     Json?
+  createdAt      DateTime        @default(now())
+}
+
+model Milestone {
+  id               String          @id @default(cuid())
+  campaignId       String
+  campaign         Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?         @db.Text
+  budgetAllocation Decimal?        @db.Decimal(14, 2)
+  targetDate       DateTime?
+  completionPct    Int             @default(0)
+  status           MilestoneStatus @default(PLANNED)
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Document {
+  id         String             @id @default(cuid())
+  campaignId String
+  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name       String
+  type       String
+  fileUrl    String
+  fileSize   Int?
+  visibility DocumentVisibility @default(PUBLIC)
+  createdAt  DateTime           @default(now())
+}
+
+model TrustScore {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score           Int      @default(0)
+  kycComplete     Boolean  @default(false)
+  revenueVerified Boolean  @default(false)
+  businessReg     Boolean  @default(false)
+  teamListed      Boolean  @default(false)
+  financialData   Boolean  @default(false)
+  updatesPosted   Boolean  @default(false)
+  docsUploaded    Boolean  @default(false)
+  badges          String[]
+  updatedAt       DateTime @updatedAt
+}
+
+model Verification {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        VerificationType
+  status      VerificationStatus @default(PENDING)
+  documentUrl String?
+  notes       String?
+  reviewedAt  DateTime?
+  createdAt   DateTime           @default(now())
+
+  @@unique([userId, type])
+}
+
+model WithdrawalRequest {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  campaignId String
+  amount     Decimal          @db.Decimal(14, 2)
+  status     WithdrawalStatus @default(PENDING)
+  provider   PaymentProvider?
+  accountInfo Json?
+  notes      String?
+  reviewedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  content    String   @db.Text
+  parentId   String?
+  parent     Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[] @relation("CommentReplies")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model CampaignUpdate {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title      String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model SavedCampaign {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, campaignId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation("AuditUser", fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
