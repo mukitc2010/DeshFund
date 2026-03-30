@@ -6,8 +6,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-  // @ts-ignore - PrismaClient constructor typing issue with Prisma 7.5
+  const url = process.env.DATABASE_URL;
+  if (!url || url === "postgresql://user:password@localhost:5432/fundbd") {
+    // No real database — return a client that will fail gracefully at query time
+    // API routes already catch errors and fall back to mock data
+    const adapter = new PrismaPg({ connectionString: url || "postgresql://localhost:5432/fundbd" });
+    // @ts-ignore
+    return new PrismaClient({ adapter });
+  }
+  const adapter = new PrismaPg({ connectionString: url });
+  // @ts-ignore
   return new PrismaClient({ adapter });
 }
 
