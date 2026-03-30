@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 import { createCampaignSchema, campaignQuerySchema } from "@/lib/validators/campaign";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
