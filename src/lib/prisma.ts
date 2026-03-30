@@ -1,16 +1,28 @@
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+// Lazy-load Prisma client — only connects when actually called
+// This prevents build/import failures on Vercel when no DB is available
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let _prisma: any = null;
 
-function createPrismaClient() {
-  const url = process.env.DATABASE_URL || "postgresql://localhost:5432/fundbd";
-  const adapter = new PrismaPg({ connectionString: url });
-  return new PrismaClient({ adapter } as any);
+function getPrismaClient() {
+  if (_prisma) return _prisma;
+
+  try {
+    const { PrismaClient } = require("@/generated/prisma/client");
+    const { PrismaPg } = require("@prisma/adapter-pg");
+    const url = process.env.DATABASE_URL || "postgresql://localhost:5432/fundbd";
+    const adapter = new PrismaPg({ connectionString: url });
+    _prisma = new PrismaClient({ adapter });
+    return _prisma;
+  } catch {
+    // Return a proxy that throws readable errors
+    return new Proxy({} as any, {
+      get: () => new Proxy({} as any, {
+        get: () => async () => { throw new Error("DATABASE_NOT_AVAILABLE"); }
+      })
+    });
+  }
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma = new Proxy({} as any, {
+  get: (_target, prop) => getPrismaClient()[prop],
+});

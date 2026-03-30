@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailable, mockSearch } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Campaign search error:", error);
+    if (isDbUnavailable(error)) {
+      const q = request.nextUrl.searchParams.get("q") || "";
+      return Response.json(mockSearch(q));
+    }
     return Response.json(
       {
         success: false,

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { z } from "zod";
 import { createAuditLog } from "@/lib/audit";
+import { isDbUnavailable } from "@/lib/api-helpers";
 
 const createVerificationSchema = z.object({
   type: z.enum(["NID", "BUSINESS_REG", "REVENUE_PROOF", "KYC_BASIC"]),
@@ -34,6 +35,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Get verifications error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json({ success: true, data: { verifications: [] }, error: null });
+    }
     return Response.json(
       {
         success: false,

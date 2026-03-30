@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/api-helpers";
+import { getMockCampaign } from "@/lib/mock-data";
 
 export async function GET(
   request: Request,
@@ -37,6 +39,22 @@ export async function GET(
     });
   } catch (error) {
     console.error("Updates list error:", error);
+    if (isDbUnavailable(error)) {
+      const { id } = await params;
+      const mock = getMockCampaign(id);
+      if (!mock) {
+        return Response.json(
+          { success: false, data: null, error: { code: "NOT_FOUND", message: "Campaign not found" } },
+          { status: 404 }
+        );
+      }
+      return Response.json({
+        success: true,
+        data: { updates: mock.updates || [] },
+        error: null,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
     return Response.json(
       {
         success: false,

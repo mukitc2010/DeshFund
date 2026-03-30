@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/api-helpers";
 
 export async function GET(request: Request) {
   try {
@@ -49,6 +50,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Notifications list error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json({ success: true, data: { notifications: [], unreadCount: 0 }, error: null });
+    }
     return Response.json(
       {
         success: false,

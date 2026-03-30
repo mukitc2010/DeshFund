@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { isDbUnavailable, mockAdminStats } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
@@ -79,6 +80,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Admin stats error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json(mockAdminStats());
+    }
     return Response.json(
       { success: false, data: null, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
       { status: 500 }

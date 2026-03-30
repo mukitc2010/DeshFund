@@ -88,8 +88,8 @@ export async function PATCH(
       // Count this one as verified too
       const verifiedTypes = new Set(
         allVerifications
-          .filter((v) => v.id === id || v.status === "VERIFIED")
-          .map((v) => v.type)
+          .filter((v: any) => v.id === id || v.status === "VERIFIED")
+          .map((v: any) => v.type)
       );
 
       const kycComplete = verifiedTypes.has("KYC_BASIC") || verifiedTypes.has("KYC_FULL");

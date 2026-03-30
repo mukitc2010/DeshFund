@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/api-helpers";
 
 export async function GET(request: Request) {
   try {
@@ -48,6 +49,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Admin transactions error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json({ success: true, data: { transactions: [] }, error: null });
+    }
     return Response.json(
       { success: false, data: null, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
       { status: 500 }

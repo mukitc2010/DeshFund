@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { withdrawalSchema } from "@/lib/validators/contribution";
+import { isDbUnavailable } from "@/lib/api-helpers";
 
 
 export async function GET(request: Request) {
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
     ]);
 
     // Enrich with campaign titles
-    const campaignIds = [...new Set(withdrawals.map((w) => w.campaignId))];
+    const campaignIds = [...new Set(withdrawals.map((w: any) => w.campaignId))];
     const campaigns = await prisma.campaign.findMany({
       where: { id: { in: campaignIds } },
       select: { id: true, title: true, slug: true },
@@ -76,6 +77,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Withdrawals list error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json({ success: true, data: { withdrawals: [] }, error: null });
+    }
     return Response.json(
       {
         success: false,

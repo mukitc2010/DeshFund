@@ -4,6 +4,7 @@ import { getAuthUser, requireAuth } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 import { createCampaignSchema, campaignQuerySchema } from "@/lib/validators/campaign";
 import { Prisma } from "@/generated/prisma/client";
+import { isDbUnavailable, mockCampaignList } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -120,6 +121,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Campaign list error:", error);
+    if (isDbUnavailable(error)) {
+      const searchParams = request.nextUrl.searchParams;
+      const parsed = campaignQuerySchema.safeParse({
+        page: searchParams.get("page") || undefined,
+        pageSize: searchParams.get("pageSize") || undefined,
+        category: searchParams.get("category") || undefined,
+        search: searchParams.get("search") || undefined,
+        sort: searchParams.get("sort") || undefined,
+        featured: searchParams.get("featured") || undefined,
+      });
+      const { page = 1, pageSize = 12, category, search, sort, featured } = parsed.success ? parsed.data : {} as Record<string, undefined>;
+      return Response.json(mockCampaignList({ page, pageSize, category, search, sort, featured: !!featured }));
+    }
     return Response.json(
       {
         success: false,

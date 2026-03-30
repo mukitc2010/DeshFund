@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailable, mockFeatured } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
@@ -38,6 +39,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Featured campaigns error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json(mockFeatured());
+    }
     return Response.json(
       {
         success: false,

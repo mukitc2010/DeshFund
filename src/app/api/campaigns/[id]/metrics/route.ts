@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/auth";
 import { metricSchema } from "@/lib/validators/metric";
+import { isDbUnavailable } from "@/lib/api-helpers";
+import { getMockCampaign } from "@/lib/mock-data";
 
 interface MetricRow {
   id: string;
@@ -168,6 +170,22 @@ export async function GET(
     });
   } catch (error) {
     console.error("Metrics GET error:", error);
+    if (isDbUnavailable(error)) {
+      const { id } = await params;
+      const mock = getMockCampaign(id);
+      if (!mock) {
+        return Response.json(
+          { success: false, data: null, error: { code: "NOT_FOUND", message: "Campaign not found" } },
+          { status: 404 }
+        );
+      }
+      return Response.json({
+        success: true,
+        data: { metrics: mock.metrics || [], summary: { bestMonth: null, trendDirection: "neutral", avgMonthlyGrowth: null } },
+        error: null,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
     return Response.json(
       {
         success: false,

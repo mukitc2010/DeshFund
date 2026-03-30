@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/auth";
 import { updateCampaignSchema } from "@/lib/validators/campaign";
+import { isDbUnavailable, mockCampaignDetail } from "@/lib/api-helpers";
 
 export async function GET(
   request: Request,
@@ -71,7 +72,7 @@ export async function GET(
     let filteredDocuments = campaign.documents;
     if (!isOwner && !isAdmin) {
       filteredDocuments = campaign.documents.filter(
-        (doc) => doc.visibility === "PUBLIC"
+        (doc: any) => doc.visibility === "PUBLIC"
       );
     }
 
@@ -83,6 +84,17 @@ export async function GET(
     });
   } catch (error) {
     console.error("Campaign detail error:", error);
+    if (isDbUnavailable(error)) {
+      const { id } = await params;
+      const mock = mockCampaignDetail(id);
+      if (!mock) {
+        return Response.json(
+          { success: false, data: null, error: { code: "NOT_FOUND", message: "Campaign not found" } },
+          { status: 404 }
+        );
+      }
+      return Response.json(mock);
+    }
     return Response.json(
       {
         success: false,

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/auth";
+import { isDbUnavailable, mockUserProfile } from "@/lib/api-helpers";
 
 export async function GET(
   request: Request,
@@ -49,6 +50,17 @@ export async function GET(
     });
   } catch (error) {
     console.error("User profile GET error:", error);
+    if (isDbUnavailable(error)) {
+      const { id } = await params;
+      const mock = mockUserProfile(id);
+      if (!mock) {
+        return Response.json(
+          { success: false, data: null, error: { code: "NOT_FOUND", message: "User not found" } },
+          { status: 404 }
+        );
+      }
+      return Response.json(mock);
+    }
     return Response.json(
       {
         success: false,

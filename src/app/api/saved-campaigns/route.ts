@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
@@ -46,6 +47,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Saved campaigns list error:", error);
+    if (isDbUnavailable(error)) {
+      return Response.json({ success: true, data: { savedCampaigns: [] }, error: null });
+    }
     return Response.json(
       {
         success: false,
