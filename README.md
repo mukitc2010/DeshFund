@@ -1,4 +1,4 @@
-# FundBD — Crowdfunding Platform for Bangladesh
+# DeshFund — Crowdfunding Platform for Bangladesh
 
 Production-grade crowdfunding platform built for Bangladesh and emerging markets. Similar to Wefunder, Kickstarter, and AngelList but optimized for the Bangladeshi market with local payment integration.
 
